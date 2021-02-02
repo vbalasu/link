@@ -14,3 +14,12 @@ def test_index_without_url():
         response = client.http.get('/')
         assert response.body == b'Invalid or missing url'
 
+def test_link_received_by_sns():
+    with Client(app.app) as client:
+        with open('sns_message.txt') as f:
+            event = client.events.generate_sns_event(message=f.read())
+        with open('/tmp/event.json', 'w') as f:
+            import json
+            f.write(json.dumps(event))
+        response = client.lambda_.invoke('handle_link_visit', event)
+        assert response.payload['message'] == 'link visited'

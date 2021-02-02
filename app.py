@@ -13,6 +13,8 @@ def index():
     return Response(status_code=301, body='', headers={'Location': url})
 
 @app.on_sns_message(topic='link')
-def handle_sns_message(event):
-    app.log.debug("Received message with subject: %s, message: %s",
-                  event.subject, event.message)
+def handle_link_visit(event):
+    import json
+    output = {'message': 'link visited', 'event': event.to_dict()}
+    print(json.dumps(output))
+    return output
