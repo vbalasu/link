@@ -1,0 +1,28 @@
+[project]
+name = "linkctl"
+version = "0.1.0"
+description = "Serverless URL shortener CLI (AWS: CloudFront + Lambda + DynamoDB)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "typer>=0.12",
+    "boto3>=1.34",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+# Only needed to run `linkctl deploy` / `destroy` (also requires the Node CDK CLI).
+deploy = [
+    "aws-cdk-lib>=2.140",
+    "constructs>=10.3",
+]
+
+[project.scripts]
+linkctl = "linkctl.cli:app"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["linkctl"]

@@ -5,8 +5,9 @@ A serverless URL shortener on AWS. Create short links on your own custom domain
 all from a Python CLI, with **$0 cost when idle**. Works with any domain and any TLD
 (`.io`, `.dev`, `.co.uk`, …) — nothing assumes `.com`.
 
-> **Status:** design phase. The full specification lives in [`SPEC.md`](./SPEC.md).
-> Implementation has not started yet.
+> **Status:** implemented and deployed. A live instance runs at
+> **https://link.cloudmatica.com** (one CDK stack, `link-cloudmatica-com`).
+> The full design and rationale live in [`SPEC.md`](./SPEC.md).
 
 ## What it does
 

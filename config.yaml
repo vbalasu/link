@@ -1,0 +1,6 @@
+# link shortener configuration (one deployment per domain).
+domain: cloudmatica.com          # Route53 hosted-zone name, used verbatim (any TLD).
+subdomain: link                  # link host becomes link.cloudmatica.com
+aws_region: us-east-1            # CloudFront requires the ACM cert in us-east-1.
+aws_profile: vbalasu_admin       # AWS CLI/SDK profile to use.
+root_redirect: ""                # bare-host fallback URL; empty => 404 on link.cloudmatica.com/

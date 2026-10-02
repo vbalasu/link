@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+build/
+dist/
+
+# CDK
+cdk.out/
+.cdk.staging/
+
+# Node (CDK CLI via npx)
+node_modules/
