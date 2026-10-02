@@ -5,8 +5,14 @@ A serverless URL shortener on AWS. Create short links on your own custom domain
 all from a Python CLI, with **$0 cost when idle**. Works with any domain and any TLD
 (`.io`, `.dev`, `.co.uk`, …) — nothing assumes `.com`.
 
-> **Status:** implemented and deployed. A live instance runs at
-> **https://link.cloudmatica.com** (one CDK stack, `link-cloudmatica-com`).
+> **Status:** implemented and deployed. Two live instances run today, each its own
+> isolated CDK stack (separate CloudFront, Lambda, and DynamoDB table):
+>
+> | Domain | Stack | Config |
+> |--------|-------|--------|
+> | **https://link.cloudmatica.com** | `link-cloudmatica-com` | [`config.yaml`](./config.yaml) |
+> | **https://link.vbalasu.com** | `link-vbalasu-com` | [`config.vbalasu.com.yaml`](./config.vbalasu.com.yaml) |
+>
 > The full design and rationale live in [`SPEC.md`](./SPEC.md).
 
 ## What it does
@@ -64,9 +70,22 @@ linkctl deploy     # reads config.yaml, runs cdk deploy: cert + CloudFront + Lam
 linkctl destroy    # tear the stack down
 ```
 
+### Multiple domains
+
+Each domain is an independent deployment with its own config file. Point any command at
+a specific domain with the global `--config` / `-c` option (it goes **before** the
+subcommand); it defaults to `config.yaml`.
+
+```bash
+linkctl --config config.vbalasu.com.yaml deploy          # deploy the vbalasu.com stack
+linkctl -c config.vbalasu.com.yaml create promo https://example.org
+linkctl create promo https://example.org                 # uses config.yaml (cloudmatica.com)
+```
+
 ## CLI
 
 ```bash
+# All commands accept a leading `--config/-c <file>` (default: config.yaml).
 linkctl create <slug> <target_url>        # create a link (rejects if slug exists)
 linkctl delete <slug>                     # remove the mapping
 linkctl list                              # list all slugs, targets, counts

@@ -22,6 +22,19 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+# Which config file commands operate on (one deployment per domain).
+_state = {"config": "config.yaml"}
+
+
+@app.callback()
+def _main(
+    config: str = typer.Option(
+        "config.yaml", "--config", "-c",
+        help="Config file for the target domain (default: config.yaml).",
+    ),
+):
+    _state["config"] = config
+
 SLUG_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 RESERVED = {"health", "_health", "favicon.ico", "robots.txt"}
 
@@ -57,7 +70,7 @@ def _repo_root() -> Path:
 @app.command()
 def deploy():
     """Provision/update the AWS stack for this domain (reads config.yaml)."""
-    cfg = load_config()
+    cfg = load_config(_state["config"])
     root = _repo_root()
     acct = account_id(cfg)
     region = cfg["aws_region"]
@@ -92,7 +105,7 @@ def deploy():
 @app.command()
 def destroy():
     """Tear down the stack (DynamoDB table is retained)."""
-    cfg = load_config()
+    cfg = load_config(_state["config"])
     root = _repo_root()
     acct = account_id(cfg)
     env = os.environ.copy()
@@ -116,7 +129,7 @@ def create(slug: str, target_url: str):
     """Create a short link. Fails if the slug already exists (immutable)."""
     _validate_slug(slug)
     _validate_url(target_url)
-    cfg = load_config()
+    cfg = load_config(_state["config"])
     import datetime
 
     try:
@@ -140,7 +153,7 @@ def create(slug: str, target_url: str):
 @app.command()
 def delete(slug: str, keep_clicks: bool = typer.Option(True, help="Retain click history.")):
     """Delete a link's mapping. Click history is retained by default."""
-    cfg = load_config()
+    cfg = load_config(_state["config"])
     t = table(cfg)
     if not t.get_item(Key={"PK": slug, "SK": "META"}).get("Item"):
         _err(f"slug '{slug}' not found")
@@ -170,7 +183,7 @@ def list_links():
     """List all links with their targets and click counts."""
     from boto3.dynamodb.conditions import Attr
 
-    cfg = load_config()
+    cfg = load_config(_state["config"])
     t = table(cfg)
     items, kwargs = [], {"FilterExpression": Attr("SK").eq("META")}
     while True:
@@ -193,7 +206,7 @@ def list_links():
 @app.command()
 def inspect(slug: str):
     """Show one link's metadata."""
-    cfg = load_config()
+    cfg = load_config(_state["config"])
     item = table(cfg).get_item(Key={"PK": slug, "SK": "META"}).get("Item")
     if not item:
         _err(f"slug '{slug}' not found")
@@ -230,7 +243,7 @@ def stats(
     top: int = typer.Option(5, help="How many top values per dimension."),
 ):
     """Totals, daily time-series, and top countries/referers/user-agents."""
-    cfg = load_config()
+    cfg = load_config(_state["config"])
     t = table(cfg)
     if not t.get_item(Key={"PK": slug, "SK": "META"}).get("Item"):
         _err(f"slug '{slug}' not found")
@@ -261,7 +274,7 @@ def export(
     output: str = typer.Option(None, "--output", "-o", help="File (default: stdout)."),
 ):
     """Export raw click history for a slug."""
-    cfg = load_config()
+    cfg = load_config(_state["config"])
     clicks = _query_clicks(table(cfg), slug)
     fields = ["ts", "ip", "country", "region", "city", "user_agent",
               "referer", "accept_language", "SK"]
