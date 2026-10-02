@@ -84,11 +84,19 @@ Prerequisite: domain (or delegated subdomain) hosted in Route53.
 
 ```yaml
 # config.yaml
-domain: example.com          # link host becomes link.example.com
+domain: example.io           # the Route53 hosted-zone name, used verbatim.
+                             #   ANY valid domain / TLD works — example.io,
+                             #   acme.dev, go.example.co.uk, etc. No TLD is assumed.
 subdomain: link              # optional, default "link"
 aws_region: us-east-1
-root_redirect: https://example.com   # optional; bare host fallback (else 404)
+root_redirect: https://example.io    # optional; bare host fallback (else 404)
 ```
+
+- **No TLD assumption.** `domain` is treated as the literal Route53 hosted-zone name;
+  the link host is simply `{subdomain}.{domain}`. The zone is looked up by that exact
+  name — never by inferring the "registrable" domain via a 2-label strip (which would
+  break multi-label TLDs like `co.uk`). Multi-level subdomains and any TLD are supported.
+- If `subdomain` is empty, the apex `{domain}` itself is used as the link host.
 
 ```
 linkctl deploy        # reads config.yaml, runs cdk deploy: cert + CloudFront + Lambda + table + DNS

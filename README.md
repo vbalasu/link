@@ -1,15 +1,16 @@
 # link
 
 A serverless URL shortener on AWS. Create short links on your own custom domain
-(`https://link.yourdomain.com/slug`), record every click, and analyze access history —
-all from a Python CLI, with **$0 cost when idle**.
+(`https://link.yourdomain.tld/slug`), record every click, and analyze access history —
+all from a Python CLI, with **$0 cost when idle**. Works with any domain and any TLD
+(`.io`, `.dev`, `.co.uk`, …) — nothing assumes `.com`.
 
 > **Status:** design phase. The full specification lives in [`SPEC.md`](./SPEC.md).
 > Implementation has not started yet.
 
 ## What it does
 
-- Map a **user-friendly slug** to a **target URL**: `link.yourdomain.com/promo` → your long URL.
+- Map a **user-friendly slug** to a **target URL**: `link.yourdomain.tld/promo` → your long URL.
 - Serve the redirect from a custom domain over HTTPS.
 - **Record every click** — timestamp, geo, user-agent, referer, and more.
 - Provide a CLI (`linkctl`) to create links and analyze their access history.
@@ -45,12 +46,16 @@ every decision (including the alternatives that were rejected).
 
 Prerequisite: your domain (or a delegated subdomain) is hosted in **Route53**.
 
+The `domain` is used verbatim as the Route53 hosted-zone name — **any domain / any TLD**
+works (`example.io`, `acme.dev`, `go.example.co.uk`). Nothing infers a `.com`-shaped
+registrable domain, so multi-label TLDs are fine.
+
 ```yaml
 # config.yaml
-domain: example.com                  # link host becomes link.example.com
+domain: example.io                   # link host becomes link.example.io
 subdomain: link                      # optional, default "link"
 aws_region: us-east-1
-root_redirect: https://example.com   # optional fallback for the bare host
+root_redirect: https://example.io    # optional fallback for the bare host
 ```
 
 ```bash
