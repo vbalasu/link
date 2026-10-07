@@ -10,8 +10,8 @@ all from a Python CLI, with **$0 cost when idle**. Works with any domain and any
 >
 > | Domain | Stack | Config |
 > |--------|-------|--------|
-> | **https://link.cloudmatica.com** | `link-cloudmatica-com` | [`config.yaml`](./config.yaml) |
-> | **https://link.vbalasu.com** | `link-vbalasu-com` | [`config.vbalasu.com.yaml`](./config.vbalasu.com.yaml) |
+> | **https://link.cloudmatica.com** | `link-cloudmatica-com` | [`config.link.cloudmatica.com.yaml`](./config.link.cloudmatica.com.yaml) |
+> | **https://link.vbalasu.com** | `link-vbalasu-com` | [`config.link.vbalasu.com.yaml`](./config.link.vbalasu.com.yaml) |
 > | **https://go.vbalasu.com** | `link-go-vbalasu-com` | [`config.go.vbalasu.com.yaml`](./config.go.vbalasu.com.yaml) |
 >
 > The full design and rationale live in [`SPEC.md`](./SPEC.md).
@@ -75,12 +75,13 @@ linkctl destroy    # tear the stack down
 
 Each domain is an independent deployment with its own config file. Point any command at
 a specific domain with the global `--config` / `-c` option (it goes **before** the
-subcommand); it defaults to `config.yaml`.
+subcommand); it defaults to `config.yaml`, which is a symlink to
+`config.go.vbalasu.com.yaml`.
 
 ```bash
-linkctl --config config.vbalasu.com.yaml deploy          # deploy the vbalasu.com stack
-linkctl -c config.vbalasu.com.yaml create promo https://example.org
-linkctl create promo https://example.org                 # uses config.yaml (cloudmatica.com)
+linkctl --config config.link.vbalasu.com.yaml deploy     # deploy the link.vbalasu.com stack
+linkctl -c config.link.vbalasu.com.yaml create promo https://example.org
+linkctl create promo https://example.org                 # uses config.yaml (go.vbalasu.com)
 ```
 
 The stack name defaults to `link-<domain>`, so a second shortener on the **same domain**

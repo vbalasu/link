@@ -1,4 +1,4 @@
-# link shortener configuration for vbalasu.com (second deployment).
+# link shortener configuration for link.vbalasu.com.
 domain: vbalasu.com              # Route53 hosted-zone name, used verbatim (any TLD).
 subdomain: link                  # link host becomes link.vbalasu.com
 aws_region: us-east-1           # CloudFront requires the ACM cert in us-east-1.
