@@ -81,6 +81,7 @@ def deploy():
 
     ctx = [
         "-c", f"domain={cfg['domain']}",
+        "-c", f"stack_name={cfg['stack_name']}",
         "-c", f"subdomain={cfg['subdomain']}",
         "-c", f"root_redirect={cfg['root_redirect']}",
         "-c", f"account={acct}",
@@ -113,6 +114,7 @@ def destroy():
         env["AWS_PROFILE"] = cfg["aws_profile"]
     ctx = [
         "-c", f"domain={cfg['domain']}",
+        "-c", f"stack_name={cfg['stack_name']}",
         "-c", f"subdomain={cfg['subdomain']}",
         "-c", f"root_redirect={cfg['root_redirect']}",
         "-c", f"account={acct}",

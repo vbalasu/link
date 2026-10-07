@@ -27,5 +27,7 @@ def load_config(path: str = "config.yaml") -> dict:
     sub = cfg["subdomain"]
     cfg["host"] = f"{sub}.{cfg['domain']}" if sub else cfg["domain"]
     # Stack name is derived from the domain verbatim — no TLD assumptions.
-    cfg["stack_name"] = "link-" + cfg["domain"].replace(".", "-")
+    # Set stack_name explicitly to run a second shortener on the same domain.
+    if not cfg.get("stack_name"):
+        cfg["stack_name"] = "link-" + cfg["domain"].replace(".", "-")
     return cfg

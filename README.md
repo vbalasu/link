@@ -12,6 +12,7 @@ all from a Python CLI, with **$0 cost when idle**. Works with any domain and any
 > |--------|-------|--------|
 > | **https://link.cloudmatica.com** | `link-cloudmatica-com` | [`config.yaml`](./config.yaml) |
 > | **https://link.vbalasu.com** | `link-vbalasu-com` | [`config.vbalasu.com.yaml`](./config.vbalasu.com.yaml) |
+> | **https://go.vbalasu.com** | `link-go-vbalasu-com` | [`config.go.vbalasu.com.yaml`](./config.go.vbalasu.com.yaml) |
 >
 > The full design and rationale live in [`SPEC.md`](./SPEC.md).
 
@@ -80,6 +81,17 @@ subcommand); it defaults to `config.yaml`.
 linkctl --config config.vbalasu.com.yaml deploy          # deploy the vbalasu.com stack
 linkctl -c config.vbalasu.com.yaml create promo https://example.org
 linkctl create promo https://example.org                 # uses config.yaml (cloudmatica.com)
+```
+
+The stack name defaults to `link-<domain>`, so a second shortener on the **same domain**
+(e.g. `go.vbalasu.com` alongside `link.vbalasu.com`) must set `stack_name` explicitly —
+otherwise it would update the existing stack and move it to the new host:
+
+```yaml
+# config.go.vbalasu.com.yaml
+domain: vbalasu.com
+subdomain: go
+stack_name: link-go-vbalasu-com
 ```
 
 ## CLI
