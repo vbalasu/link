@@ -64,6 +64,18 @@ def _repo_root() -> Path:
     _err("cdk.json not found — run `linkctl deploy` from the project directory")
 
 
+def _cdk_env(cfg) -> dict:
+    """Env for `npx cdk`: AWS profile, and this interpreter first on PATH so that
+    cdk.json's `python3 cdk/app.py` runs where aws-cdk-lib is installed."""
+    env = os.environ.copy()
+    if cfg.get("aws_profile"):
+        env["AWS_PROFILE"] = cfg["aws_profile"]
+    bindir = os.path.dirname(sys.executable)
+    env["PATH"] = bindir + os.pathsep + env.get("PATH", "")
+    env.setdefault("JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION", "1")
+    return env
+
+
 # --------------------------------------------------------------------------- #
 # Infra
 # --------------------------------------------------------------------------- #
@@ -75,9 +87,7 @@ def deploy():
     acct = account_id(cfg)
     region = cfg["aws_region"]
 
-    env = os.environ.copy()
-    if cfg.get("aws_profile"):
-        env["AWS_PROFILE"] = cfg["aws_profile"]
+    env = _cdk_env(cfg)
 
     ctx = [
         "-c", f"domain={cfg['domain']}",
@@ -109,9 +119,7 @@ def destroy():
     cfg = load_config(_state["config"])
     root = _repo_root()
     acct = account_id(cfg)
-    env = os.environ.copy()
-    if cfg.get("aws_profile"):
-        env["AWS_PROFILE"] = cfg["aws_profile"]
+    env = _cdk_env(cfg)
     ctx = [
         "-c", f"domain={cfg['domain']}",
         "-c", f"stack_name={cfg['stack_name']}",
