@@ -243,15 +243,29 @@ def stats(
     from_: str = typer.Option(None, "--from", help="ISO date/time lower bound."),
     to: str = typer.Option(None, "--to", help="ISO date/time upper bound."),
     top: int = typer.Option(5, help="How many top values per dimension."),
+    param: list[str] = typer.Option(
+        None, "--param", help="Only clicks whose URL params match KEY=VALUE (repeatable)."
+    ),
 ):
-    """Totals, daily time-series, and top countries/referers/user-agents."""
+    """Totals, daily time-series, and top countries/referers/user-agents/UTMs."""
+    filters = []
+    for p in param or []:
+        key, sep, value = p.partition("=")
+        if not sep or not key:
+            _err(f"--param must be KEY=VALUE, got '{p}'")
+        filters.append((key, value))
+
     cfg = load_config(_state["config"])
     t = table(cfg)
     if not t.get_item(Key={"PK": slug, "SK": "META"}).get("Item"):
         _err(f"slug '{slug}' not found")
     clicks = _query_clicks(t, slug, from_, to)
+    if filters:
+        clicks = [c for c in clicks
+                  if all((c.get("params") or {}).get(k) == v for k, v in filters)]
 
-    typer.secho(f"{slug}: {len(clicks)} clicks", fg=typer.colors.CYAN, bold=True)
+    label = slug + "".join(f" [{k}={v}]" for k, v in filters)
+    typer.secho(f"{label}: {len(clicks)} clicks", fg=typer.colors.CYAN, bold=True)
     if not clicks:
         return
 
@@ -268,6 +282,17 @@ def stats(
             for val, n in counts.most_common(top):
                 typer.echo(f"  {n:>5}  {val}")
 
+    for key in ("utm_source", "utm_medium", "utm_campaign"):
+        counts = Counter((c.get("params") or {}).get(key) for c in clicks)
+        counts.pop(None, None)
+        if counts:
+            typer.echo(f"\ntop {key}:")
+            for val, n in counts.most_common(top):
+                typer.echo(f"  {n:>5}  {val}")
+
+
+UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]
+
 
 @app.command()
 def export(
@@ -279,7 +304,7 @@ def export(
     cfg = load_config(_state["config"])
     clicks = _query_clicks(table(cfg), slug)
     fields = ["ts", "ip", "country", "region", "city", "user_agent",
-              "referer", "accept_language", "SK"]
+              "referer", "accept_language", "SK", *UTM_KEYS, "query"]
 
     if format == "json":
         text = json.dumps(clicks, indent=2, default=str)
@@ -290,7 +315,8 @@ def export(
         w = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
         for c in sorted(clicks, key=lambda x: x.get("ts", "")):
-            w.writerow(c)
+            params = c.get("params") or {}
+            w.writerow({**c, **{k: params[k] for k in UTM_KEYS if k in params}})
         text = buf.getvalue()
     else:
         _err("format must be csv or json")

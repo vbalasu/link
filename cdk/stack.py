@@ -74,7 +74,8 @@ class LinkStack(Stack):
             validation=acm.CertificateValidation.from_dns(zone),
         )
 
-        # Forward exactly the headers the handler reads. Note: Host is intentionally
+        # Forward exactly the headers the handler reads, plus all query strings (recorded
+        # with each click and passed through to the target). Note: Host is intentionally
         # NOT forwarded, so CloudFront sends the Function URL's own host to the origin.
         origin_request_policy = cf.OriginRequestPolicy(
             self,
@@ -88,7 +89,7 @@ class LinkStack(Stack):
                 "Referer",
                 "Accept-Language",
             ),
-            query_string_behavior=cf.OriginRequestQueryStringBehavior.none(),
+            query_string_behavior=cf.OriginRequestQueryStringBehavior.all(),
             cookie_behavior=cf.OriginRequestCookieBehavior.none(),
         )
 

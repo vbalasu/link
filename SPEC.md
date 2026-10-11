@@ -59,6 +59,20 @@ A serverless URL-shortening utility that:
 | 14 | Redirect code | **302 + `Cache-Control: no-store`** | Every repeat visit re-hits Lambda = accurate click counts. 301 rejected (browser-cached → undercounts). |
 | 15 | Not-found behavior | **404 for unknown/deleted slug; configurable root redirect** | Bare `link.{domain}/` → fallback URL from config.yaml, or 404 if unset. |
 
+URL-parameter decisions (from a follow-up design interview; full detail in §10):
+
+| # | Decision | Choice | Rationale |
+|---|----------|--------|-----------|
+| 16 | Query params on a link | **Record AND pass through to the target** | Matches shortener convention (Bitly et al.); destination analytics (GA, HubSpot) keep their UTM attribution. Record-only rejected (silently drops attribution); per-link flag rejected (YAGNI). |
+| 17 | Key collision (target already has the key) | **Target wins**; incoming keys only added if absent | Target params are deliberate and slugs are immutable. Incoming-wins rejected: anyone could hijack `ref`/affiliate/campaign ids by editing a shared URL. Keep-both rejected: duplicate-key semantics are undefined across frameworks. The incoming value is still recorded. |
+| 18 | Which params | **All**, with size caps: ≤50 keys, keys ≤128 chars, values ≤1024 chars; overflow truncated in the record + `params_truncated: true` | Ad click ids (`gclid`, `fbclid`, `li_fat_id`, `ttclid`) matter to destinations; an allowlist rots silently. #17 removes the hijack risk; caps bound junk payloads. CloudFront's ~8 KB URL limit bounds the request itself. Caps apply to the record only, not to passthrough. |
+| 19 | Storage shape | **Both** raw `query` string **and** parsed `params` map (first value per key, string values) | Raw is lossless (order, repeats, encoding) and allows re-parsing later; map is uniform-typed for `stats`/`export`. Fields omitted when no params (old clicks unchanged). |
+| 20 | `stats` | **Top `utm_source` / `utm_medium` / `utm_campaign`** sections + repeatable `--param k=v` filter (AND) applied to every section | Answers "where from?" and "how did that segment behave?". Per-key breakdown of all keys rejected (high-cardinality click ids are noise). |
+| 21 | CSV `export` | **Append fixed columns** `utm_source, utm_medium, utm_campaign, utm_term, utm_content, query` | Stable schema across exports; existing column order preserved. Dynamic per-key columns rejected. JSON export already includes everything. |
+| 22 | Root URL with params | **Pass through to `root_redirect`, not recorded** | Bio links on the bare host keep attribution. Recording root rejected (makes root a tracked link; `_root` partition invisible to `list`). 404s: unchanged (no record, no passthrough). |
+| 23 | Link builder command | **None** | Convenience only; hand-typed `?utm_…` or any UTM builder suffices. Revisit if tedious. |
+| 24 | Rollout | **Unit-tested pure helpers; deploy `link.vbalasu.com` (test) → `go.vbalasu.com` (primary) → `link.cloudmatica.com`** | Keeps all stacks on the same code so an unrelated later deploy can't ship this unverified. |
+
 ## 4. Data Model (DynamoDB, single table)
 
 **Link item**
@@ -71,6 +85,9 @@ A serverless URL-shortening utility that:
 - `SK` = `{iso8601_timestamp}#{uuid}`
 - attributes: `ts`, `ip` (raw), `country`, `region`, `city`, `user_agent`,
   `browser`, `device`, `referer`, `accept_language`
+- optional (only when the click URL carried a query string, decision #19):
+  `query` (raw string, verbatim), `params` (map `key → first value`, capped per #18),
+  `params_truncated` (bool, present only when a cap was hit)
 
 **Queries**
 - Resolve redirect: `GetItem(PK=slug, SK=META)`.
@@ -112,7 +129,8 @@ linkctl create <slug> <target_url>     # create a link (rejects if slug exists)
 linkctl delete <slug>                  # remove the mapping
 linkctl list                           # list all slugs + targets + counts
 linkctl inspect <slug>                 # show one link's metadata
-linkctl stats <slug> [--from --to]     # totals + time-series + top geo/referer/UA
+linkctl stats <slug> [--from --to] [--param k=v ...]
+                                       # totals + time-series + top geo/referer/UA/utm_*
 linkctl export <slug> [--format csv|json]  # raw click history
 ```
 
@@ -146,3 +164,37 @@ linkctl export <slug> [--format csv|json]  # raw click history
   deletion-on-request mechanism — add if compliance requires.
 - Rate limiting / abuse protection on redirect endpoint: none specified.
 - No web dashboard (CLI-only). A management API would be the prerequisite if added.
+
+## 10. URL Parameters
+
+Any link accepts optional query parameters, e.g.
+`https://go.vbalasu.com/promo?utm_source=youtube`. Parameters are never required, so
+every previously shared link keeps working byte-for-byte: a click with no query string
+redirects to exactly the stored `target_url`, as before.
+
+**Edge.** The CloudFront origin request policy forwards **all** query strings to the
+Lambda (previously `none`). Caching remains disabled, so this does not affect cache keys.
+
+**Redirect (`Location`) construction** — `merge(target_url, incoming_query)`:
+- Parse the incoming query (blank values kept). Append each incoming `key=value` pair
+  whose key is **not** already present in the target's query (#17). Repeated incoming
+  keys are appended in order, as long as the target doesn't define that key.
+- The target's existing query, path, and `#fragment` are preserved; new params are
+  inserted before the fragment (`/page#faq` → `/page?utm_source=x#faq`).
+- No incoming query → `Location` is the unmodified `target_url`.
+- Applies to slug redirects and to the root redirect (#22); not to 404s.
+
+**Recording** (slug clicks only): `query` = raw incoming query string; `params` = first
+value per key, at most 50 keys, keys truncated to 128 chars, values to 1024 chars;
+`params_truncated: true` if any cap was hit. Recording failures never block the redirect
+(existing behavior).
+
+**Analytics**
+- `linkctl stats <slug> --param utm_source=youtube [--param utm_medium=video]` filters
+  clicks (all conditions must match against `params`) before every aggregation. Adds
+  top-N sections for `utm_source`, `utm_medium`, `utm_campaign`.
+- `linkctl export` CSV appends `utm_source, utm_medium, utm_campaign, utm_term,
+  utm_content, query`; JSON includes `query`/`params` as stored.
+
+**Testing.** The merge/parse logic lives in pure stdlib helpers in `lambda/handler.py`,
+covered by `tests/test_handler.py` (pytest, no AWS needed).

@@ -21,6 +21,8 @@ all from a Python CLI, with **$0 cost when idle**. Works with any domain and any
 - Map a **user-friendly slug** to a **target URL**: `link.yourdomain.tld/promo` → your long URL.
 - Serve the redirect from a custom domain over HTTPS.
 - **Record every click** — timestamp, geo, user-agent, referer, and more.
+- **Optional URL parameters** on any link (`/promo?utm_source=youtube`) are recorded
+  with the click and passed through to the target.
 - Provide a CLI (`linkctl`) to create links and analyze their access history.
 - Scale to zero: no fixed infrastructure cost when no one is clicking.
 
@@ -103,9 +105,28 @@ linkctl create <slug> <target_url>        # create a link (rejects if slug exist
 linkctl delete <slug>                     # remove the mapping
 linkctl list                              # list all slugs, targets, counts
 linkctl inspect <slug>                    # show one link's metadata
-linkctl stats <slug> [--from --to]        # totals, time-series, top geo/referer/UA
-linkctl export <slug> [--format csv|json] # raw click history
+linkctl stats <slug> [--from --to]        # totals, time-series, top geo/referer/UA/UTM
+linkctl stats <slug> --param utm_source=youtube   # same, filtered by URL params (repeatable)
+linkctl export <slug> [--format csv|json] # raw click history (CSV adds utm_* + query)
 ```
+
+### URL parameters
+
+Any link accepts optional query parameters — no setup, and links shared without them
+behave exactly as before:
+
+```
+https://go.vbalasu.com/promo?utm_source=youtube&utm_medium=video
+```
+
+- **Passed through** to the target. If the target URL already defines a key, the
+  target's value wins (so a shared URL can't override your `ref`/campaign ids); new
+  keys are appended, before any `#fragment`.
+- **Recorded** on the click as `query` (raw string) and `params` (first value per key;
+  ≤50 keys, keys ≤128 chars, values ≤1024 chars, `params_truncated` if capped).
+- The bare host passes parameters through to `root_redirect` but doesn't record them.
+
+See SPEC.md §10 for details. Tests: `pytest tests`.
 
 ## Installation
 
